@@ -12,6 +12,7 @@ import _thread
 import threading
 from sound_player import play_sound
 from multiprocessing import Process, Lock
+from parse_text import parse
 
 
 CONVERSATION_LIMIT = 20
@@ -57,7 +58,7 @@ class Bot(commands.Bot):
         Bot.conversation.append({ 'role': 'user', 'content': content })
         print(content)
 
-        response = gpt3_completion(Bot.conversation).replace('~', '')
+        response = parse(gpt3_completion(Bot.conversation))
         print('Tana-chan:' , response)
 
         if(Bot.conversation.count({ 'role': 'assistant', 'content': response }) == 0):
@@ -84,8 +85,8 @@ class Bot(commands.Bot):
         # Names of voices can be retrieved with client.list_voices().
         voice = texttospeech.VoiceSelectionParams(
             language_code="en-GB",
-            name= "en-GB-Wavenet-C",
-            ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
+            name= "en-GB-Wavenet-B",
+            ssml_gender=texttospeech.SsmlVoiceGender.MALE,
         )
 
         audio_config = texttospeech.AudioConfig(    
