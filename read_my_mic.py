@@ -29,12 +29,16 @@ class ReadMyMic():
         # Initialise with a lock to prevent multiple simultaneous output
         ReadMyMic.lock = lock
         ReadMyMic.conversation = conversation
+        micList = sr.Microphone.list_microphone_names()
+        micIndex = micList.index("Microphone (NVIDIA Broadcast)")
+        #self.mic = sr.Microphone(micIndex)
         self.mic = sr.Microphone()
         self.r = sr.Recognizer()
         self.current_buffer = ""
         with self.mic as source:
-            self.r.adjust_for_ambient_noise(source, duration=5)
+            #self.r.adjust_for_ambient_noise(source=source, duration=5)
             print("adjusted")
+        self.response_chance = 0.2
         
     def run(self):
         audio_file = os.path.dirname(__file__) + '\\' + "output2.mp3"
@@ -44,7 +48,9 @@ class ReadMyMic():
     
     def get_speech(self):
         with self.mic as source:
-            audio = self.r.listen(source, timeout = 10)
+            #self.r.adjust_for_ambient_noise(source=source, duration=1)
+            print("adjusted2")
+            audio = self.r.listen(source, timeout = 3)
             try:
                 words = self.r.recognize_google(audio)
             except:
@@ -53,15 +59,24 @@ class ReadMyMic():
             print('------------------------------------------------------')
             print(words)
             
-        self.current_buffer += words
-        if (len(self.current_buffer) > 20):
-            if  "Purr" in self.current_buffer or random.random() < 0.5:
-            
-                ReadMyMic.conversation.append({ 'role': 'user', 'content': words })
+        #self.current_buffer += words
+        self.current_buffer = words
+        if (len(self.current_buffer) > 10):
+            if  "help" in self.current_buffer or random.random() < self.response_chance:
                 
+                if  "help" in self.current_buffer:
+                    ReadMyMic.conversation.append({ 'role': 'user', 'content': self.current_buffer })
+                    response = parse(gpt3_completion(ReadMyMic.conversation))
+                else:
+                    ReadMyMic.conversation.append({ 'role': 'user', 'content': self.current_buffer })
+                    #ReadMyMic.conversation.append({ 'role': 'user', 'content': 'Wouldn\'t you agree that ' + self.current_buffer })
+                    #ReadMyMic.conversation.append({ 'role': 'user', 'content': 'Finish this sentence: ' + self.current_buffer })
+                    response = parse(gpt3_completion_prompt('ROGER: ' + self.current_buffer + '\nPurr-bot: Yes, I agree with you. Furthermore, '))
+                    
+                if (len(response) == 0):
+                    return
                 # TODO: Move this into its own class
-                response = parse(gpt3_completion(ReadMyMic.conversation))
-                print('Tana-chan:' , response)
+                print('Purr-bot:' , response)
                 if(ReadMyMic.conversation.count({ 'role': 'assistant', 'content': response }) == 0):
                     ReadMyMic.conversation.append({ 'role': 'assistant', 'content': response })
                 
@@ -100,6 +115,10 @@ class ReadMyMic():
                     out.write(response.audio_content)
                 print('------------------------------------------------------')
                 self.current_buffer = ""
+                self.response_chance = 0.2
+            else:
+                print("response change failed at " + str(self.response_chance))
+                self.response_chance += 0.2
             
         #play_sound("output2.mp3", ReadMyMic.lock)
         

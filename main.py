@@ -6,6 +6,7 @@ import os
 import time
 import nltk
 import creds
+import random
 import asyncio
 import read_my_mic as rmm
 import _thread
@@ -58,82 +59,84 @@ class Bot(commands.Bot):
         Bot.conversation.append({ 'role': 'user', 'content': content })
         print(content)
 
-        response = parse(gpt3_completion(Bot.conversation))
-        print('Tana-chan:' , response)
+        # TODO RECAP FUNCTIONALITY
+        if  "purr" in content.lower() or random.random() < 0.05:
+            response = parse(gpt3_completion(Bot.conversation))
+            print('Purr-bot:' , response)
 
-        if(Bot.conversation.count({ 'role': 'assistant', 'content': response }) == 0):
-            Bot.conversation.append({ 'role': 'assistant', 'content': response })
-        
-        if len(Bot.conversation) > CONVERSATION_LIMIT:
-            Bot.conversation = Bot.conversation[1:]
-        
-        client = texttospeech.TextToSpeechClient()
+            if(Bot.conversation.count({ 'role': 'assistant', 'content': response }) == 0):
+                Bot.conversation.append({ 'role': 'assistant', 'content': response })
+            
+            if len(Bot.conversation) > CONVERSATION_LIMIT:
+                Bot.conversation = Bot.conversation[1:]
+            
+            client = texttospeech.TextToSpeechClient()
 
-        #response = message.content + "? " + response #remove to remove initial message from speech output
-        ssml_text = '<speak>'
-        response_counter = 0
-        mark_array = []
-        for s in response.split(' '):
-            ssml_text += f'<mark name="{response_counter}"/>{s}'
-            mark_array.append(s)
-            response_counter += 1
-        ssml_text += '</speak>'
+            #response = message.content + "? " + response #remove to remove initial message from speech output
+            ssml_text = '<speak>'
+            response_counter = 0
+            mark_array = []
+            for s in response.split(' '):
+                ssml_text += f'<mark name="{response_counter}"/>{s}'
+                mark_array.append(s)
+                response_counter += 1
+            ssml_text += '</speak>'
 
-        input_text = texttospeech.SynthesisInput(ssml = ssml_text)
+            input_text = texttospeech.SynthesisInput(ssml = ssml_text)
 
-        # Note: the voice can also be specified by name.
-        # Names of voices can be retrieved with client.list_voices().
-        voice = texttospeech.VoiceSelectionParams(
-            language_code="en-GB",
-            name= "en-GB-Wavenet-B",
-            ssml_gender=texttospeech.SsmlVoiceGender.MALE,
-        )
+            # Note: the voice can also be specified by name.
+            # Names of voices can be retrieved with client.list_voices().
+            voice = texttospeech.VoiceSelectionParams(
+                language_code="en-GB",
+                name= "en-GB-Wavenet-B",
+                ssml_gender=texttospeech.SsmlVoiceGender.MALE,
+            )
 
-        audio_config = texttospeech.AudioConfig(    
-            audio_encoding=texttospeech.AudioEncoding.MP3,
-        )
-        
+            audio_config = texttospeech.AudioConfig(    
+                audio_encoding=texttospeech.AudioEncoding.MP3,
+            )
+            
 
-        response = client.synthesize_speech(
-            request={"input": input_text, "voice": voice, "audio_config": audio_config, "enable_time_pointing": ["SSML_MARK"]}
-        )
+            response = client.synthesize_speech(
+                request={"input": input_text, "voice": voice, "audio_config": audio_config, "enable_time_pointing": ["SSML_MARK"]}
+            )
 
-        # The response's audio_content is binary.
-        with open("output.mp3", "wb") as out:
-            out.write(response.audio_content)
+            # The response's audio_content is binary.
+            with open("output.mp3", "wb") as out:
+                out.write(response.audio_content)
 
 
-        #play_sound("output.mp3", Bot.lock)
+            #play_sound("output.mp3", Bot.lock)
 
-        count = 0
-        current = 0
-        for i in range(len(response.timepoints)):
-            count += 1
-            current += 1
-            with open("output.txt", "a", encoding="utf-8") as out:
-                out.write(mark_array[int(response.timepoints[i].mark_name)] + " ")
-            if i != len(response.timepoints) - 1:
-                total_time = response.timepoints[i + 1].time_seconds
-                #time.sleep(total_time - response.timepoints[i].time_seconds)
-            if current == 25:
-                    open('output.txt', 'w', encoding="utf-8").close()
-                    current = 0
-                    count = 0
-            elif count % 7 == 0:
+            count = 0
+            current = 0
+            for i in range(len(response.timepoints)):
+                count += 1
+                current += 1
                 with open("output.txt", "a", encoding="utf-8") as out:
-                    out.write("\n")
-        #time.sleep(2)
-        open('output.txt', 'w').close()
+                    out.write(mark_array[int(response.timepoints[i].mark_name)] + " ")
+                if i != len(response.timepoints) - 1:
+                    total_time = response.timepoints[i + 1].time_seconds
+                    #time.sleep(total_time - response.timepoints[i].time_seconds)
+                if current == 25:
+                        open('output.txt', 'w', encoding="utf-8").close()
+                        current = 0
+                        count = 0
+                elif count % 7 == 0:
+                    with open("output.txt", "a", encoding="utf-8") as out:
+                        out.write("\n")
+            #time.sleep(2)
+            open('output.txt', 'w').close()
 
 
 
-        # Print the contents of our message to console...
-        
-        print('------------------------------------------------------')
+            # Print the contents of our message to console...
+            
+            print('------------------------------------------------------')
 
-        # Since we have commands and are overriding the default `event_message`
-        # We must let the bot know we want to handle and invoke our commands...
-        await self.handle_commands(message)
+            # Since we have commands and are overriding the default `event_message`
+            # We must let the bot know we want to handle and invoke our commands...
+            await self.handle_commands(message)
         
         #rmmClass = rmm.ReadMyMic()
         #await asyncio.gather(self.handle_commands(message), rmmClass.get_speech())
